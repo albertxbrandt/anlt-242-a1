@@ -5,9 +5,12 @@ reapply sample rules. Cutoff values are read from ``config`` so the printed
 rules match the code that built the sample.
 """
 
-from src.analysis import AnalysisResult, CorrelationStats, RegressionStats
+import math
+
+from src.analysis import AnalysisResult, CorrelationStats
 from src.config import (
     CORRELATION_TIE_MARGIN,
+    LOG_PLAYER_FLOOR,
     MIN_EARLY_REVIEWS,
     MIN_MONTH1_PLAYERS,
     MONTH1_DAY_CUTOFF,
@@ -45,9 +48,18 @@ def _print_sample(result: AnalysisResult) -> None:
         "otherwise it is the next month. Month 6 is five months after month 1."
     )
     print(
+        "Outcome: log retention, the natural log of average players in month 6 "
+        f"divided by average players in month 1. A month-6 average of 0 is treated as {LOG_PLAYER_FLOOR}."
+    )
+    print(
         f"A game is included when it is a full game, both months are present, "
         f"month 1 averaged at least {MIN_MONTH1_PLAYERS} players, and at least "
         f"{MIN_EARLY_REVIEWS} reviews were written in the first 30 days."
+    )
+    share_left = math.exp(result.median_log_retention)
+    print(
+        f"Median log retention among included games: {result.median_log_retention:.3f} "
+        f"(about {share_left:.0%} of month-1 players remained)."
     )
     print(f"Games stored in the database: {result.games_in_database}")
     print(f"Games included: {result.included}")
@@ -70,18 +82,14 @@ def _print_question_one(result: AnalysisResult) -> None:
 
     print("Question 1")
     print("Shared sample: games with both a Metacritic score and an early player-review score.")
+    print("Each line is the Spearman correlation of that score with log retention.")
     for correlation in result.q1_correlations:
         _print_correlation(correlation)
-    _print_regression(
-        "Both scores together, after standardizing each score on this shared sample:",
-        result.q1_regression,
-    )
     print(
         "Check on the larger sample that does not require a critic score "
         "(early player score only):"
     )
     _print_correlation(result.q1_user_only)
-    _print_regression("Early player score alone:", result.q1_user_only_regression)
     print(_question_one_answer(result))
     print()
 
@@ -91,20 +99,11 @@ def _print_question_two(result: AnalysisResult) -> None:
 
     print("Question 2")
     print("Predictor: early player-review score. Outcome: log retention. Hybrid games are omitted.")
+    print("Each line is the Spearman correlation of that score with log retention.")
     for mode in result.q2_modes:
         label = "Single-player" if mode.play_mode == "single" else "Multiplayer"
         print(f"{label}:")
         _print_correlation(mode.correlation)
-        _print_regression("Early player score alone:", mode.regression)
-    _print_regression(
-        "Pooled model with a multiplayer indicator and a score-by-mode interaction:",
-        result.q2_interaction,
-    )
-    print(
-        "In that model, user_z is the early player score for a single-player game, "
-        "multi shifts the baseline for multiplayer games, and user_z_x_multi is how "
-        "much the score's slope changes for multiplayer games."
-    )
     print(_question_two_answer(result))
     print()
 
@@ -117,22 +116,8 @@ def _print_correlation(correlation: CorrelationStats) -> None:
         return
     print(
         f"  {correlation.score_name}: n={correlation.n}, "
-        f"Spearman r={correlation.spearman_r:.3f} (p={correlation.spearman_p:.3f}), "
-        f"Pearson r={correlation.pearson_r:.3f} (p={correlation.pearson_p:.3f})"
+        f"Spearman r={correlation.spearman_r:.3f} (p={correlation.spearman_p:.3f})"
     )
-
-
-def _print_regression(title: str, regression: RegressionStats) -> None:
-    """Print R-squared and each coefficient with its p-value."""
-
-    print(f"  {title}")
-    if not regression.coefficients or _missing(regression.r_squared):
-        print(f"    n={regression.n}, model was not fit.")
-        return
-    print(f"    n={regression.n}, R-squared={regression.r_squared:.3f}")
-    for name, coefficient in regression.coefficients.items():
-        pvalue = regression.pvalues.get(name, float("nan"))
-        print(f"    {name}: coefficient={coefficient:.3f} (p={pvalue:.3f})")
 
 
 def _question_one_answer(result: AnalysisResult) -> str:
@@ -152,9 +137,8 @@ def _question_one_answer(result: AnalysisResult) -> str:
     chosen = critic if result.q1_stronger == "critic score" else player
     return (
         f"Answer: {winner} are the better predictor of six-month player activity. "
-        f"On the shared sample the Spearman correlation is {chosen.spearman_r:.3f} "
-        f"versus {other.spearman_r:.3f} for the other score. "
-        "The two-score regression shows how much of that association remains after the other score is included."
+        f"On the shared sample the Spearman correlation with log retention is {chosen.spearman_r:.3f} "
+        f"versus {other.spearman_r:.3f} for the other score."
     )
 
 

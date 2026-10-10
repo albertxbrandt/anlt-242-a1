@@ -60,6 +60,7 @@ class AnalysisResult:
     multi_included: int
     hybrid_included: int
     unknown_included: int
+    median_log_retention: float
     q1_correlations: list[CorrelationStats]
     q1_regression: RegressionStats
     q1_stronger: str
@@ -105,6 +106,7 @@ def run_analysis(db_path: Path = DB_PATH) -> AnalysisResult:
         multi_included=int((included["play_mode"] == "multi").sum()),
         hybrid_included=int((included["play_mode"] == "hybrid").sum()),
         unknown_included=int((included["play_mode"] == "unknown").sum()),
+        median_log_retention=float(included["log_retention"].median()),
         q1_correlations=q1_correlations,
         q1_regression=q1_regression,
         q1_stronger=_stronger_name(q1_correlations[0], q1_correlations[1]),

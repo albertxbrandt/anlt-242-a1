@@ -5,7 +5,15 @@ This project collects public Steam and SteamCharts pages into a SQLite database 
 1. Are critic scores or early player-review scores better predictors of player activity six months after launch?
 2. Are early player-review scores better predictors of that activity for single-player games than for multiplayer games?
 
-`python main.py` states the questions, reads `data/games.sqlite`, and prints the answers with the sample size and statistics. It does not scrape.
+`python main.py` states the questions, reads `data/games.sqlite`, and prints the answers with sample sizes and Spearman correlations against log retention. It does not scrape.
+
+## Submission components
+
+1. SQLite database file: [`data/games.sqlite`](data/games.sqlite)
+2. Python code packaged so that running `main.py` states the questions, runs the analysis on the database, and answers them with support. This repository is that package.
+3. A synthesis of the process used to answer the questions: [`docs/answering_the_question.md`](docs/answering_the_question.md)
+4. A synthesis of the process used to gather the data (it is not a preexisting dataset): [`docs/gathering_the_data.md`](docs/gathering_the_data.md)
+5. A summary of how AI was used and the difficulties encountered: [`docs/ai_usage.md`](docs/ai_usage.md)
 
 ## Setup
 
@@ -42,7 +50,7 @@ That command is resumable. Raw responses are cached in `data/raw/`, which is not
 - `src/http_client.py` waits, retries, and caches requests.
 - `src/db.py` owns the SQLite schema and queries.
 - `src/sample.py` defines month 1, month 6, play mode, and inclusion.
-- `src/analysis.py` fits the correlations and regressions.
+- `src/analysis.py` computes Spearman correlations of the scores with log retention.
 - `src/report.py` formats the printed report.
 - `src/config.py` holds the shared cutoffs and paths.
 - `docs/` explains the question, the collection, and the use of AI.
